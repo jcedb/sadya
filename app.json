@@ -4,11 +4,11 @@
     "slug": "sadya",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash-screen.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -16,8 +16,9 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.johncedrickbermejo.sadya",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -25,6 +26,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "988f0ad5-fa3f-47eb-8ef0-f416ebc2d032"
+      }
     }
   }
 }
