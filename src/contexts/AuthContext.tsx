@@ -85,13 +85,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, newSession) => {
-                setSession(newSession);
-                setUser(newSession?.user ?? null);
-
-                if (newSession?.user) {
+                // If it's a sign-in or initial session, we might want to stay in loading
+                // until the profile is fetched to prevent navigation flickering
+                if (newSession?.user && event !== 'SIGNED_OUT') {
+                    setIsLoading(true); // Re-enter loading if we have a user but maybe no profile yet
+                    setSession(newSession);
+                    setUser(newSession.user);
                     const userProfile = await fetchProfile(newSession.user.id);
                     setProfile(userProfile);
                 } else {
+                    setSession(newSession);
+                    setUser(newSession?.user ?? null);
                     setProfile(null);
                 }
 

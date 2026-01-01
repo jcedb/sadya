@@ -24,7 +24,7 @@ const LoadingScreen: React.FC = () => (
 export const RootNavigator: React.FC = () => {
     const { isAuthenticated, isLoading, profile } = useAuth();
 
-    if (isLoading) {
+    if (isLoading || (isAuthenticated && !profile)) {
         return <LoadingScreen />;
     }
 
