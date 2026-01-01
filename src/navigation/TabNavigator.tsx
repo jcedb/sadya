@@ -65,13 +65,13 @@ export const CustomerTabNavigator: React.FC = () => {
                     tabBarIcon: ({ focused }) => <TabIcon Icon={Home} focused={focused} />,
                 }}
             />
-            <CustomerTab.Screen
+            {/* <CustomerTab.Screen
                 name="Map"
                 component={MapScreen}
                 options={{
                     tabBarIcon: ({ focused }) => <TabIcon Icon={Map} focused={focused} />,
                 }}
-            />
+            /> */}
             <CustomerTab.Screen
                 name="MyBookings"
                 component={CustomerBookingsScreen}
