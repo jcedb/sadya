@@ -28,9 +28,7 @@ export const EditBusinessProfileScreen: React.FC = () => {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [imageUrl, setImageUrl] = useState('');
 
-    const [nameError, setNameError] = useState<string | null>(null);
-    const [addressError, setAddressError] = useState<string | null>(null);
-    const [phoneError, setPhoneError] = useState<string | null>(null);
+    const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
     const [isUploading, setIsUploading] = useState(false);
     const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
 
@@ -64,33 +62,48 @@ export const EditBusinessProfileScreen: React.FC = () => {
         }
     };
 
+    const validateField = (field: string, val: string) => {
+        let error: string | null = null;
+        switch (field) {
+            case 'name':
+                const nameVal = validateRequired(val, 'Business Name');
+                if (!nameVal.isValid) error = nameVal.error;
+                break;
+            case 'address':
+                const addressVal = validateRequired(val, 'Address');
+                if (!addressVal.isValid) error = addressVal.error;
+                break;
+            case 'phone':
+                const phoneVal = validatePhoneNumber(val);
+                if (!phoneVal.isValid) error = phoneVal.error;
+                break;
+        }
+        setErrors(prev => ({ ...prev, [field]: error }));
+    };
+
     const validateForm = () => {
         let isValid = true;
+        const newErrors: { [key: string]: string | null } = {};
 
         const nameVal = validateRequired(name, 'Business Name');
         if (!nameVal.isValid) {
-            setNameError(nameVal.error);
+            newErrors.name = nameVal.error;
             isValid = false;
-        } else {
-            setNameError(null);
         }
 
         const addressVal = validateRequired(addressText, 'Address');
         if (!addressVal.isValid) {
-            setAddressError(addressVal.error);
+            newErrors.address = addressVal.error;
             isValid = false;
-        } else {
-            setAddressError(null);
         }
 
         const phoneVal = validatePhoneNumber(phoneNumber);
         if (!phoneVal.isValid) {
-            setPhoneError(phoneVal.error);
+            newErrors.phone = phoneVal.error;
             isValid = false;
-        } else {
-            setPhoneError(null);
         }
 
+        setErrors(newErrors);
         return isValid;
     };
 
@@ -174,8 +187,12 @@ export const EditBusinessProfileScreen: React.FC = () => {
                     label="Business Name"
                     placeholder="e.g. Joy's Salon"
                     value={name}
-                    onChangeText={setName}
-                    error={nameError}
+                    onChangeText={(val) => {
+                        setName(val);
+                        if (errors.name) validateField('name', val);
+                    }}
+                    onBlur={() => validateField('name', name)}
+                    error={errors.name}
                     required
                 />
 
@@ -192,8 +209,12 @@ export const EditBusinessProfileScreen: React.FC = () => {
                     label="Address"
                     placeholder="Complete address"
                     value={addressText}
-                    onChangeText={setAddressText}
-                    error={addressError}
+                    onChangeText={(val) => {
+                        setAddressText(val);
+                        if (errors.address) validateField('address', val);
+                    }}
+                    onBlur={() => validateField('address', addressText)}
+                    error={errors.address}
                     required
                 />
 
@@ -201,8 +222,12 @@ export const EditBusinessProfileScreen: React.FC = () => {
                     label="Business Phone"
                     placeholder="09XX XXX XXXX"
                     value={phoneNumber}
-                    onChangeText={setPhoneNumber}
-                    error={phoneError}
+                    onChangeText={(val) => {
+                        setPhoneNumber(val);
+                        if (errors.phone) validateField('phone', val);
+                    }}
+                    onBlur={() => validateField('phone', phoneNumber)}
+                    error={errors.phone}
                     keyboardType="phone-pad"
                     required
                 />

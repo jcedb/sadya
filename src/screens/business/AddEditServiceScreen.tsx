@@ -38,6 +38,36 @@ export const AddEditServiceScreen: React.FC = () => {
 
     const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
 
+    const validateField = (field: string, value: string) => {
+        let error: string | null = null;
+
+        switch (field) {
+            case 'name':
+                const nameVal = validateRequired(value, 'Service Name');
+                if (!nameVal.isValid) error = nameVal.error;
+                break;
+            case 'price':
+                const priceVal = validateNumber(value, 'Price');
+                if (!priceVal.isValid) error = priceVal.error;
+                break;
+            case 'duration':
+                const durationVal = validateNumber(value, 'Duration');
+                if (!durationVal.isValid) error = durationVal.error;
+                break;
+            case 'salePrice':
+                if (isOnSale) {
+                    const salePriceVal = validateNumber(value, 'Sale Price');
+                    if (!salePriceVal.isValid) error = salePriceVal.error;
+                    else if (parseFloat(value) >= parseFloat(price)) {
+                        error = 'Sale price must be lower than original price';
+                    }
+                }
+                break;
+        }
+
+        setErrors(prev => ({ ...prev, [field]: error }));
+    };
+
     const validateForm = () => {
         let isValid = true;
         const newErrors: { [key: string]: string | null } = {};
@@ -160,7 +190,11 @@ export const AddEditServiceScreen: React.FC = () => {
                     label="Service Name"
                     placeholder="e.g. Haircut & Style"
                     value={name}
-                    onChangeText={setName}
+                    onChangeText={(val) => {
+                        setName(val);
+                        if (errors.name) validateField('name', val);
+                    }}
+                    onBlur={() => validateField('name', name)}
                     error={errors.name}
                     required
                 />
@@ -181,7 +215,12 @@ export const AddEditServiceScreen: React.FC = () => {
                             label="Price (₱)"
                             placeholder="0.00"
                             value={price}
-                            onChangeText={setPrice}
+                            onChangeText={(val) => {
+                                setPrice(val);
+                                if (errors.price) validateField('price', val);
+                                if (isOnSale) validateField('salePrice', salePrice);
+                            }}
+                            onBlur={() => validateField('price', price)}
                             keyboardType="numeric"
                             error={errors.price}
                             required
@@ -192,7 +231,11 @@ export const AddEditServiceScreen: React.FC = () => {
                             label="Duration (mins)"
                             placeholder="60"
                             value={duration}
-                            onChangeText={setDuration}
+                            onChangeText={(val) => {
+                                setDuration(val);
+                                if (errors.duration) validateField('duration', val);
+                            }}
+                            onBlur={() => validateField('duration', duration)}
                             keyboardType="numeric"
                             error={errors.duration}
                             required
@@ -204,7 +247,11 @@ export const AddEditServiceScreen: React.FC = () => {
                     <Text style={styles.switchLabel}>Put on Sale?</Text>
                     <Switch
                         value={isOnSale}
-                        onValueChange={setIsOnSale}
+                        onValueChange={(val) => {
+                            setIsOnSale(val);
+                            if (val) validateField('salePrice', salePrice);
+                            else setErrors(prev => ({ ...prev, salePrice: null }));
+                        }}
                         trackColor={{ false: Colors.background.tertiary, true: Colors.status.success }}
                         thumbColor={Colors.text.primary}
                     />
@@ -215,7 +262,11 @@ export const AddEditServiceScreen: React.FC = () => {
                         label="Sale Price (₱)"
                         placeholder="0.00"
                         value={salePrice}
-                        onChangeText={setSalePrice}
+                        onChangeText={(val) => {
+                            setSalePrice(val);
+                            if (errors.salePrice) validateField('salePrice', val);
+                        }}
+                        onBlur={() => validateField('salePrice', salePrice)}
                         keyboardType="numeric"
                         error={errors.salePrice}
                         required

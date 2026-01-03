@@ -33,11 +33,73 @@ export const AddEditCouponScreen: React.FC = () => {
     const [usageLimit, setUsageLimit] = useState(coupon?.usage_limit?.toString() || '10');
     const [expiryDays, setExpiryDays] = useState('30'); // Default 30 days for simplicity in MVP
 
-    const handleSave = async () => {
-        if (!code || !value) {
-            showAlert({ title: 'Required Fields', message: 'Please provide both a code and a discount value.', type: 'error' });
-            return;
+    const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
+
+    const validateField = (field: string, val: string) => {
+        let error: string | null = null;
+        switch (field) {
+            case 'code':
+                if (!val.trim()) error = 'Coupon code is required';
+                break;
+            case 'value':
+                if (!val.trim()) error = 'Discount value is required';
+                else if (isNaN(parseFloat(val)) || parseFloat(val) <= 0) error = 'Enter a valid positive number';
+                else if (discountType === 'percentage' && parseFloat(val) > 100) error = 'Percentage cannot exceed 100%';
+                break;
+            case 'minSpend':
+                if (val && (isNaN(parseFloat(val)) || parseFloat(val) < 0)) error = 'Enter a valid amount';
+                break;
+            case 'usageLimit':
+                if (val && (isNaN(parseInt(val)) || parseInt(val) < 1)) error = 'Limit must be at least 1';
+                break;
+            case 'expiryDays':
+                if (!val.trim()) error = 'Expiry days is required';
+                else if (isNaN(parseInt(val)) || parseInt(val) < 1) error = 'Enter at least 1 day';
+                break;
         }
+        setErrors(prev => ({ ...prev, [field]: error }));
+    };
+
+    const validateForm = () => {
+        let isValid = true;
+        const newErrors: { [key: string]: string | null } = {};
+
+        if (!code.trim()) { newErrors.code = 'Coupon code is required'; isValid = false; }
+        if (!value.trim()) {
+            newErrors.value = 'Discount value is required';
+            isValid = false;
+        } else if (isNaN(parseFloat(value)) || parseFloat(value) <= 0) {
+            newErrors.value = 'Enter a valid positive number';
+            isValid = false;
+        } else if (discountType === 'percentage' && parseFloat(value) > 100) {
+            newErrors.value = 'Percentage cannot exceed 100%';
+            isValid = false;
+        }
+
+        if (minSpend && (isNaN(parseFloat(minSpend)) || parseFloat(minSpend) < 0)) {
+            newErrors.minSpend = 'Enter a valid amount';
+            isValid = false;
+        }
+
+        if (usageLimit && (isNaN(parseInt(usageLimit)) || parseInt(usageLimit) < 1)) {
+            newErrors.usageLimit = 'Limit must be at least 1';
+            isValid = false;
+        }
+
+        if (!expiryDays.trim()) {
+            newErrors.expiryDays = 'Expiry days is required';
+            isValid = false;
+        } else if (isNaN(parseInt(expiryDays)) || parseInt(expiryDays) < 1) {
+            newErrors.expiryDays = 'Enter at least 1 day';
+            isValid = false;
+        }
+
+        setErrors(newErrors);
+        return isValid;
+    };
+
+    const handleSave = async () => {
+        if (!validateForm()) return;
 
         if (!business?.id) return;
 
@@ -114,22 +176,34 @@ export const AddEditCouponScreen: React.FC = () => {
                 <Input
                     label="Coupon Code"
                     value={code}
-                    onChangeText={setCode}
+                    onChangeText={(val) => {
+                        setCode(val);
+                        if (errors.code) validateField('code', val);
+                    }}
+                    onBlur={() => validateField('code', code)}
                     placeholder="e.g. SAVE20"
                     autoCapitalize="characters"
+                    error={errors.code}
+                    required
                 />
 
                 <Text style={styles.label}>Discount Type</Text>
                 <View style={styles.typeContainer}>
                     <TouchableOpacity
                         style={[styles.typeButton, discountType === 'percentage' && styles.typeButtonActive]}
-                        onPress={() => setDiscountType('percentage')}
+                        onPress={() => {
+                            setDiscountType('percentage');
+                            if (errors.value) validateField('value', value);
+                        }}
                     >
                         <Text style={[styles.typeButtonText, discountType === 'percentage' && styles.typeButtonTextActive]}>Percentage (%)</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.typeButton, discountType === 'fixed' && styles.typeButtonActive]}
-                        onPress={() => setDiscountType('fixed')}
+                        onPress={() => {
+                            setDiscountType('fixed');
+                            if (errors.value) validateField('value', value);
+                        }}
                     >
                         <Text style={[styles.typeButtonText, discountType === 'fixed' && styles.typeButtonTextActive]}>Fixed (₱)</Text>
                     </TouchableOpacity>
@@ -138,10 +212,16 @@ export const AddEditCouponScreen: React.FC = () => {
                 <Input
                     label="Discount Value"
                     value={value}
-                    onChangeText={setValue}
+                    onChangeText={(val) => {
+                        setValue(val);
+                        if (errors.value) validateField('value', val);
+                    }}
+                    onBlur={() => validateField('value', value)}
                     placeholder={discountType === 'percentage' ? "e.g. 20" : "e.g. 100"}
                     keyboardType="numeric"
                     hint={discountType === 'percentage' ? "Percentage off the total price." : "Fixed amount off the total price."}
+                    error={errors.value}
+                    required
                 />
 
                 <View style={styles.row}>
@@ -149,18 +229,28 @@ export const AddEditCouponScreen: React.FC = () => {
                         <Input
                             label="Min Spend (₱)"
                             value={minSpend}
-                            onChangeText={setMinSpend}
+                            onChangeText={(val) => {
+                                setMinSpend(val);
+                                if (errors.minSpend) validateField('minSpend', val);
+                            }}
+                            onBlur={() => validateField('minSpend', minSpend)}
                             placeholder="e.g. 500"
                             keyboardType="numeric"
+                            error={errors.minSpend}
                         />
                     </View>
                     <View style={styles.halfInput}>
                         <Input
                             label="Usage Limit"
                             value={usageLimit}
-                            onChangeText={setUsageLimit}
+                            onChangeText={(val) => {
+                                setUsageLimit(val);
+                                if (errors.usageLimit) validateField('usageLimit', val);
+                            }}
+                            onBlur={() => validateField('usageLimit', usageLimit)}
                             placeholder="e.g. 50"
                             keyboardType="numeric"
+                            error={errors.usageLimit}
                         />
                     </View>
                 </View>
@@ -168,10 +258,16 @@ export const AddEditCouponScreen: React.FC = () => {
                 <Input
                     label="Validity (Days)"
                     value={expiryDays}
-                    onChangeText={setExpiryDays}
+                    onChangeText={(val) => {
+                        setExpiryDays(val);
+                        if (errors.expiryDays) validateField('expiryDays', val);
+                    }}
+                    onBlur={() => validateField('expiryDays', expiryDays)}
                     placeholder="e.g. 30"
                     keyboardType="numeric"
                     hint="Number of days from today before the coupon expires."
+                    error={errors.expiryDays}
+                    required
                 />
 
                 <Button

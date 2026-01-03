@@ -25,6 +25,39 @@ export const AddPortfolioItemScreen: React.FC = () => {
     const [description, setDescription] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
+    const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
+
+    const validateField = (field: string, val: string) => {
+        let error: string | null = null;
+        switch (field) {
+            case 'description':
+                if (val.trim().length < 5) error = 'Description must be at least 5 characters';
+                break;
+            case 'image':
+                if (!selectedImageUri && !imageUrl) error = 'Please upload or provide an image';
+                break;
+        }
+        setErrors(prev => ({ ...prev, [field]: error }));
+    };
+
+    const validateForm = () => {
+        let isValid = true;
+        const newErrors: { [key: string]: string | null } = {};
+
+        if (!selectedImageUri && !imageUrl) {
+            newErrors.image = 'Please provide an image';
+            isValid = false;
+        }
+
+        if (description.trim().length < 5) {
+            newErrors.description = 'Description must be at least 5 characters';
+            isValid = false;
+        }
+
+        setErrors(newErrors);
+        return isValid;
+    };
+
     const pickImage = async () => {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -35,7 +68,9 @@ export const AddPortfolioItemScreen: React.FC = () => {
             });
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
-                setSelectedImageUri(result.assets[0].uri);
+                const uri = result.assets[0].uri;
+                setSelectedImageUri(uri);
+                if (errors.image) validateField('image', uri);
             }
         } catch (error) {
             showAlert({ title: 'Error', message: 'Failed to pick image', type: 'error' });
@@ -43,10 +78,7 @@ export const AddPortfolioItemScreen: React.FC = () => {
     };
 
     const handleSave = async () => {
-        if (!selectedImageUri && !imageUrl) {
-            showAlert({ title: 'Error', message: 'Please provide an image', type: 'error' });
-            return;
-        }
+        if (!validateForm()) return;
 
         if (!business?.id) {
             showAlert({ title: 'Error', message: 'Business not found', type: 'error' });
@@ -104,7 +136,11 @@ export const AddPortfolioItemScreen: React.FC = () => {
             {/* Scrollable Content */}
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
                 <Text style={styles.label}>Portfolio Image</Text>
-                <TouchableOpacity style={styles.imagePicker} onPress={pickImage} disabled={isUploading}>
+                <TouchableOpacity
+                    style={[styles.imagePicker, errors.image ? { borderColor: Colors.status.error } : null]}
+                    onPress={pickImage}
+                    disabled={isUploading}
+                >
                     {selectedImageUri || imageUrl ? (
                         <View style={styles.imageContainer}>
                             <Image source={{ uri: selectedImageUri || imageUrl }} style={styles.previewImage} />
@@ -118,21 +154,28 @@ export const AddPortfolioItemScreen: React.FC = () => {
                                 <ActivityIndicator size="small" color={Colors.primary.main} />
                             ) : (
                                 <>
-                                    <Camera size={32} color={Colors.text.secondary} />
-                                    <Text style={styles.placeholderText}>Tap to upload image</Text>
+                                    <Camera size={32} color={errors.image ? Colors.status.error : Colors.text.secondary} />
+                                    <Text style={[styles.placeholderText, errors.image ? { color: Colors.status.error } : null]}>Tap to upload image</Text>
                                 </>
                             )}
                         </View>
                     )}
                 </TouchableOpacity>
+                {errors.image && <Text style={{ color: Colors.status.error, fontSize: 12, marginTop: -Layout.spacing.md, marginBottom: Layout.spacing.lg }}>{errors.image}</Text>}
 
                 <Input
                     label="Description"
                     value={description}
-                    onChangeText={setDescription}
+                    onChangeText={(val) => {
+                        setDescription(val);
+                        if (errors.description) validateField('description', val);
+                    }}
+                    onBlur={() => validateField('description', description)}
                     placeholder="Short description of the work"
+                    error={errors.description}
                     multiline
                     numberOfLines={3}
+                    required
                 />
 
                 <Button

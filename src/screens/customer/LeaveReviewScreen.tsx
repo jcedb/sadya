@@ -22,13 +22,38 @@ export const LeaveReviewScreen: React.FC = () => {
 
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
+    const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = async () => {
-        if (rating === 0) {
-            showAlert({ title: 'Rating Required', message: 'Please select a star rating.', type: 'error' });
-            return;
+    const validateField = (field: string, val: any) => {
+        let error: string | null = null;
+        switch (field) {
+            case 'rating':
+                if (val === 0) error = 'Please select a star rating';
+                break;
+            case 'comment':
+                // Optional field, but if we wanted minimum length for reviews:
+                // if (val && val.trim().length < 10) error = 'Review is too short';
+                break;
         }
+        setErrors(prev => ({ ...prev, [field]: error }));
+    };
+
+    const validateForm = () => {
+        let isValid = true;
+        const newErrors: { [key: string]: string | null } = {};
+
+        if (rating === 0) {
+            newErrors.rating = 'Please select a star rating';
+            isValid = false;
+        }
+
+        setErrors(newErrors);
+        return isValid;
+    };
+
+    const handleSubmit = async () => {
+        if (!validateForm()) return;
 
         if (!profile?.id) return;
 
@@ -77,7 +102,10 @@ export const LeaveReviewScreen: React.FC = () => {
                         {[1, 2, 3, 4, 5].map((star) => (
                             <TouchableOpacity
                                 key={star}
-                                onPress={() => setRating(star)}
+                                onPress={() => {
+                                    setRating(star);
+                                    if (errors.rating) validateField('rating', star);
+                                }}
                                 activeOpacity={0.7}
                                 style={styles.starWrapper}
                             >
@@ -89,6 +117,7 @@ export const LeaveReviewScreen: React.FC = () => {
                             </TouchableOpacity>
                         ))}
                     </View>
+                    {errors.rating && <Text style={{ color: Colors.status.error, marginBottom: 8 }}>{errors.rating}</Text>}
                     <Text style={styles.ratingText}>
                         {rating === 1 && 'Poor'}
                         {rating === 2 && 'Fair'}
