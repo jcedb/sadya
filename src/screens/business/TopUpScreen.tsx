@@ -27,6 +27,41 @@ export const TopUpScreen: React.FC = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
+    const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
+
+    const validateField = (field: string, val: string) => {
+        let error: string | null = null;
+        switch (field) {
+            case 'amount':
+                const num = parseCurrency(val);
+                if (num <= 0) error = 'Please enter a valid amount';
+                break;
+            case 'image':
+                if (!selectedImageUri) error = 'Please upload proof of payment';
+                break;
+        }
+        setErrors(prev => ({ ...prev, [field]: error }));
+    };
+
+    const validateForm = () => {
+        let isValid = true;
+        const newErrors: { [key: string]: string | null } = {};
+
+        const num = parseCurrency(amount);
+        if (num <= 0) {
+            newErrors.amount = 'Please enter a valid amount';
+            isValid = false;
+        }
+
+        if (!selectedImageUri) {
+            newErrors.image = 'Please upload a proof of payment image';
+            isValid = false;
+        }
+
+        setErrors(newErrors);
+        return isValid;
+    };
+
     const pickImage = async () => {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -36,7 +71,9 @@ export const TopUpScreen: React.FC = () => {
             });
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
-                setSelectedImageUri(result.assets[0].uri);
+                const uri = result.assets[0].uri;
+                setSelectedImageUri(uri);
+                if (errors.image) validateField('image', uri);
             }
         } catch (error) {
             showAlert({ title: 'Error', message: 'Failed to pick image', type: 'error' });
@@ -44,17 +81,8 @@ export const TopUpScreen: React.FC = () => {
     };
 
     const handleRequest = async () => {
+        if (!validateForm()) return;
         const numAmount = parseCurrency(amount);
-
-        if (numAmount <= 0) {
-            showAlert({ title: 'Validation Error', message: 'Please enter a valid amount', type: 'error' });
-            return;
-        }
-
-        if (!selectedImageUri) {
-            showAlert({ title: 'Validation Error', message: 'Please upload a proof of payment image', type: 'error' });
-            return;
-        }
 
         if (!business?.id) return;
 
@@ -63,7 +91,10 @@ export const TopUpScreen: React.FC = () => {
         try {
             // 1. Upload proof image
             setIsUploading(true);
-            const { url, error: uploadError } = await uploadImage('business', 'topups', selectedImageUri);
+            // Assuming uploadImage now takes (uri, folder, fileName) and returns { url, error }
+            // A unique file name is needed, e.g., using timestamp or UUID
+            const fileName = `topup_${business.id}_${Date.now()}.jpg`;
+            const { url, error: uploadError } = await uploadImage(selectedImageUri!, 'topup-proofs', fileName);
             setIsUploading(false);
 
             if (uploadError || !url) {
@@ -123,7 +154,12 @@ export const TopUpScreen: React.FC = () => {
                     label="Amount to Top Up (₱)"
                     placeholder="e.g. 500"
                     value={amount}
-                    onChangeText={setAmount}
+                    onChangeText={(val) => {
+                        setAmount(val);
+                        if (errors.amount) validateField('amount', val);
+                    }}
+                    onBlur={() => validateField('amount', amount)}
+                    error={errors.amount}
                     keyboardType="numeric"
                     required
                 />
@@ -136,7 +172,11 @@ export const TopUpScreen: React.FC = () => {
                 />
 
                 <Text style={styles.label}>Proof of Payment</Text>
-                <TouchableOpacity style={styles.imagePicker} onPress={pickImage} disabled={isUploading || isLoading}>
+                <TouchableOpacity
+                    style={[styles.imagePicker, errors.image ? { borderColor: Colors.status.error } : null]}
+                    onPress={pickImage}
+                    disabled={isUploading || isLoading}
+                >
                     {selectedImageUri ? (
                         <View style={styles.imageContainer}>
                             <Image source={{ uri: selectedImageUri }} style={styles.previewImage} />
@@ -150,13 +190,14 @@ export const TopUpScreen: React.FC = () => {
                                 <ActivityIndicator size="small" color={Colors.primary.main} />
                             ) : (
                                 <>
-                                    <Camera size={32} color={Colors.text.tertiary} />
-                                    <Text style={styles.placeholderText}>Tap to upload receipt image</Text>
+                                    <Camera size={32} color={errors.image ? Colors.status.error : Colors.text.tertiary} />
+                                    <Text style={[styles.placeholderText, errors.image ? { color: Colors.status.error } : null]}>Tap to upload receipt image</Text>
                                 </>
                             )}
                         </View>
                     )}
                 </TouchableOpacity>
+                {errors.image && <Text style={{ color: Colors.status.error, fontSize: 12, marginTop: -Layout.spacing.md, marginBottom: Layout.spacing.lg }}>{errors.image}</Text>}
 
                 <Button
                     title="Submit Request"

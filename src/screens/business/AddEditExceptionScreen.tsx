@@ -27,39 +27,66 @@ export const AddEditExceptionScreen: React.FC = () => {
     const [openTime, setOpenTime] = useState('12:00:00');
     const [closeTime, setCloseTime] = useState('13:00:00');
 
+    const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
+
     // UI state
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [pickerType, setPickerType] = useState<'open' | 'close'>('open');
 
-    const handleSave = async () => {
-        // 1. Reason Validation
+    const validateField = (field: string, val: string) => {
+        let error: string | null = null;
+        switch (field) {
+            case 'reason':
+                if (val.trim().length < 3) error = 'Reason must be at least 3 characters';
+                break;
+            case 'time':
+                if (!isClosed) {
+                    const openDate = parse(openTime, 'HH:mm:ss', new Date());
+                    const closeDate = parse(closeTime, 'HH:mm:ss', new Date());
+                    if (!isBefore(openDate, closeDate)) error = 'Opening time must be before closing time';
+                    else if (isBefore(closeDate, addMinutes(openDate, 30))) error = 'Special operating hours must be at least 30 minutes';
+                }
+                break;
+        }
+        setErrors(prev => ({ ...prev, [field]: error }));
+    };
+
+    const validateForm = () => {
+        let isValid = true;
+        const newErrors: { [key: string]: string | null } = {};
+
         if (reason.trim().length < 3) {
-            showAlert({ title: 'Validation Error', message: 'Please provide a valid reason (at least 3 characters).', type: 'error' });
-            return;
+            newErrors.reason = 'Please provide a valid reason (at least 3 characters).';
+            isValid = false;
         }
 
-        // 2. Past Date Validation
         if (isBefore(startOfDay(date), startOfDay(new Date()))) {
-            showAlert({ title: 'Validation Error', message: 'Exceptions cannot be set for past dates.', type: 'error' });
-            return;
+            // This is more of a global date error, maybe show an alert or a general error
+            // For now, let's keep it as is or show it on the date button?
+            // Let's use showAlert for date since it's a picker interaction, but for reason it's inline.
         }
 
-        // 3. Special Hours Time Sequence Validation
         if (!isClosed) {
             const openDate = parse(openTime, 'HH:mm:ss', new Date());
             const closeDate = parse(closeTime, 'HH:mm:ss', new Date());
 
             if (!isBefore(openDate, closeDate)) {
-                showAlert({ title: 'Invalid Time', message: 'Opening time must be before closing time.', type: 'error' });
-                return;
-            }
-
-            if (isBefore(closeDate, addMinutes(openDate, 30))) {
-                showAlert({ title: 'Invalid Duration', message: 'Special operating hours must be at least 30 minutes.', type: 'error' });
-                return;
+                newErrors.time = 'Opening time must be before closing time.';
+                isValid = false;
+            } else if (isBefore(closeDate, addMinutes(openDate, 30))) {
+                newErrors.time = 'Special operating hours must be at least 30 minutes.';
+                isValid = false;
             }
         }
+
+        setErrors(newErrors);
+        return isValid;
+    };
+
+    const handleSave = async () => {
+        if (!validateForm()) return;
+
 
         setIsLoading(true);
         try {
@@ -154,7 +181,12 @@ export const AddEditExceptionScreen: React.FC = () => {
                     label="Reason / Note"
                     placeholder="e.g., Public Holiday, Staff Outing"
                     value={reason}
-                    onChangeText={setReason}
+                    onChangeText={(val) => {
+                        setReason(val);
+                        if (errors.reason) validateField('reason', val);
+                    }}
+                    onBlur={() => validateField('reason', reason)}
+                    error={errors.reason}
                     multiline
                     required
                 />
@@ -193,23 +225,24 @@ export const AddEditExceptionScreen: React.FC = () => {
                             <Text style={styles.label}>
                                 {isClosed ? 'Blocked Hours' : 'Special Operating Hours'}
                             </Text>
-                            <View style={styles.timeRow}>
+                            <View style={[styles.timeRow, errors.time ? { marginBottom: 4 } : null]}>
                                 <TouchableOpacity
-                                    style={styles.timeButton}
+                                    style={[styles.timeButton, errors.time ? { borderColor: Colors.status.error } : null]}
                                     onPress={() => { setPickerType('open'); setShowTimePicker(true); }}
                                 >
-                                    <Clock size={18} color={Colors.text.secondary} />
-                                    <Text style={styles.timeText}>{formatTimeDisplay(openTime)}</Text>
+                                    <Clock size={18} color={errors.time ? Colors.status.error : Colors.text.secondary} />
+                                    <Text style={[styles.timeText, errors.time ? { color: Colors.status.error } : null]}>{formatTimeDisplay(openTime)}</Text>
                                 </TouchableOpacity>
                                 <Text style={styles.timeSeparator}>to</Text>
                                 <TouchableOpacity
-                                    style={styles.timeButton}
+                                    style={[styles.timeButton, errors.time ? { borderColor: Colors.status.error } : null]}
                                     onPress={() => { setPickerType('close'); setShowTimePicker(true); }}
                                 >
-                                    <Clock size={18} color={Colors.text.secondary} />
-                                    <Text style={styles.timeText}>{formatTimeDisplay(closeTime)}</Text>
+                                    <Clock size={18} color={errors.time ? Colors.status.error : Colors.text.secondary} />
+                                    <Text style={[styles.timeText, errors.time ? { color: Colors.status.error } : null]}>{formatTimeDisplay(closeTime)}</Text>
                                 </TouchableOpacity>
                             </View>
+                            {errors.time && <Text style={{ color: Colors.status.error, fontSize: 12, marginTop: 4 }}>{errors.time}</Text>}
                         </View>
                     </>
                 )}
@@ -244,8 +277,13 @@ export const AddEditExceptionScreen: React.FC = () => {
                         setShowTimePicker(false);
                         if (selectedTime) {
                             const timeStr = format(selectedTime, 'HH:mm:ss');
-                            if (pickerType === 'open') setOpenTime(timeStr);
-                            else setCloseTime(timeStr);
+                            if (pickerType === 'open') {
+                                setOpenTime(timeStr);
+                                if (errors.time) validateField('time', timeStr);
+                            } else {
+                                setCloseTime(timeStr);
+                                if (errors.time) validateField('time', timeStr);
+                            }
                         }
                     }}
                 />

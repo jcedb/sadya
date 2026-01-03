@@ -25,17 +25,26 @@ export const ForgotPasswordScreen: React.FC = () => {
     const { showAlert } = useAlert();
 
     const [email, setEmail] = useState('');
-    const [emailError, setEmailError] = useState<string | null>(null);
+    const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
     const [isLoading, setIsLoading] = useState(false);
     const [emailSent, setEmailSent] = useState(false);
 
+    const validateField = (field: string, val: string) => {
+        let error: string | null = null;
+        if (field === 'email') {
+            const emailValidation = validateEmail(val.trim());
+            if (!emailValidation.isValid) error = emailValidation.error;
+        }
+        setErrors(prev => ({ ...prev, [field]: error }));
+    };
+
     const validateForm = (): boolean => {
-        const emailValidation = validateEmail(email);
+        const emailValidation = validateEmail(email.trim());
         if (!emailValidation.isValid) {
-            setEmailError(emailValidation.error);
+            setErrors({ email: emailValidation.error });
             return false;
         }
-        setEmailError(null);
+        setErrors({});
         return true;
     };
 
@@ -120,8 +129,12 @@ export const ForgotPasswordScreen: React.FC = () => {
                         label="Email"
                         placeholder="Enter your email"
                         value={email}
-                        onChangeText={setEmail}
-                        error={emailError}
+                        onChangeText={(val) => {
+                            setEmail(val);
+                            if (errors.email) validateField('email', val);
+                        }}
+                        onBlur={() => validateField('email', email)}
+                        error={errors.email}
                         keyboardType="email-address"
                         autoCapitalize="none"
                         autoCorrect={false}

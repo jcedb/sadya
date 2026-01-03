@@ -42,62 +42,73 @@ export const SignupScreen: React.FC = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [selectedRole, setSelectedRole] = useState<RoleOption>('customer');
 
-    const [fullNameError, setFullNameError] = useState<string | null>(null);
-    const [emailError, setEmailError] = useState<string | null>(null);
-    const [phoneError, setPhoneError] = useState<string | null>(null);
-    const [passwordError, setPasswordError] = useState<string | null>(null);
-    const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
+    const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
 
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
+    const validateField = (field: string, val: string) => {
+        let error: string | null = null;
+        switch (field) {
+            case 'fullName':
+                const nameVal = validateRequired(val.trim(), 'Full name');
+                if (!nameVal.isValid) error = nameVal.error;
+                break;
+            case 'email':
+                const emailVal = validateEmail(val.trim());
+                if (!emailVal.isValid) error = emailVal.error;
+                break;
+            case 'phone':
+                const phoneVal = validatePhoneNumber(val.trim());
+                if (!phoneVal.isValid) error = phoneVal.error;
+                break;
+            case 'password':
+                const passVal = validatePassword(val);
+                if (!passVal.isValid) error = passVal.error;
+                break;
+            case 'confirmPassword':
+                const confirmVal = validatePasswordMatch(password, val);
+                if (!confirmVal.isValid) error = confirmVal.error;
+                break;
+        }
+        setErrors(prev => ({ ...prev, [field]: error }));
+    };
+
     const validateForm = (): boolean => {
         let isValid = true;
+        const newErrors: { [key: string]: string | null } = {};
 
-        const cleanFullName = fullName.trim();
-        const cleanEmail = email.trim();
-        const cleanPhone = phoneNumber.trim();
-
-        const nameValidation = validateRequired(cleanFullName, 'Full name');
+        const nameValidation = validateRequired(fullName.trim(), 'Full name');
         if (!nameValidation.isValid) {
-            setFullNameError(nameValidation.error);
+            newErrors.fullName = nameValidation.error;
             isValid = false;
-        } else {
-            setFullNameError(null);
         }
 
-        const emailValidation = validateEmail(cleanEmail);
+        const emailValidation = validateEmail(email.trim());
         if (!emailValidation.isValid) {
-            setEmailError(emailValidation.error);
+            newErrors.email = emailValidation.error;
             isValid = false;
-        } else {
-            setEmailError(null);
         }
 
-        const phoneValidation = validatePhoneNumber(cleanPhone);
+        const phoneValidation = validatePhoneNumber(phoneNumber.trim());
         if (!phoneValidation.isValid) {
-            setPhoneError(phoneValidation.error);
+            newErrors.phone = phoneValidation.error;
             isValid = false;
-        } else {
-            setPhoneError(null);
         }
 
         const passwordValidation = validatePassword(password);
         if (!passwordValidation.isValid) {
-            setPasswordError(passwordValidation.error);
+            newErrors.password = passwordValidation.error;
             isValid = false;
-        } else {
-            setPasswordError(null);
         }
 
         const confirmValidation = validatePasswordMatch(password, confirmPassword);
         if (!confirmValidation.isValid) {
-            setConfirmPasswordError(confirmValidation.error);
+            newErrors.confirmPassword = confirmValidation.error;
             isValid = false;
-        } else {
-            setConfirmPasswordError(null);
         }
 
+        setErrors(newErrors);
         return isValid;
     };
 
@@ -202,8 +213,12 @@ export const SignupScreen: React.FC = () => {
                         label="Full Name"
                         placeholder="Enter your full name"
                         value={fullName}
-                        onChangeText={setFullName}
-                        error={fullNameError}
+                        onChangeText={(val) => {
+                            setFullName(val);
+                            if (errors.fullName) validateField('fullName', val);
+                        }}
+                        onBlur={() => validateField('fullName', fullName)}
+                        error={errors.fullName}
                         autoCapitalize="words"
                         required
                     />
@@ -212,8 +227,12 @@ export const SignupScreen: React.FC = () => {
                         label="Email"
                         placeholder="Enter your email"
                         value={email}
-                        onChangeText={setEmail}
-                        error={emailError}
+                        onChangeText={(val) => {
+                            setEmail(val);
+                            if (errors.email) validateField('email', val);
+                        }}
+                        onBlur={() => validateField('email', email)}
+                        error={errors.email}
                         keyboardType="email-address"
                         autoCapitalize="none"
                         autoCorrect={false}
@@ -224,8 +243,12 @@ export const SignupScreen: React.FC = () => {
                         label="Phone Number"
                         placeholder="09XX XXX XXXX"
                         value={phoneNumber}
-                        onChangeText={setPhoneNumber}
-                        error={phoneError}
+                        onChangeText={(val) => {
+                            setPhoneNumber(val);
+                            if (errors.phone) validateField('phone', val);
+                        }}
+                        onBlur={() => validateField('phone', phoneNumber)}
+                        error={errors.phone}
                         keyboardType="phone-pad"
                         required
                     />
@@ -234,8 +257,13 @@ export const SignupScreen: React.FC = () => {
                         label="Password"
                         placeholder="Create a password"
                         value={password}
-                        onChangeText={setPassword}
-                        error={passwordError}
+                        onChangeText={(val) => {
+                            setPassword(val);
+                            if (errors.password) validateField('password', val);
+                            if (errors.confirmPassword) validateField('confirmPassword', confirmPassword);
+                        }}
+                        onBlur={() => validateField('password', password)}
+                        error={errors.password}
                         secureTextEntry={!showPassword}
                         hint="At least 8 characters"
                         required
@@ -245,8 +273,12 @@ export const SignupScreen: React.FC = () => {
                         label="Confirm Password"
                         placeholder="Confirm your password"
                         value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        error={confirmPasswordError}
+                        onChangeText={(val) => {
+                            setConfirmPassword(val);
+                            if (errors.confirmPassword) validateField('confirmPassword', val);
+                        }}
+                        onBlur={() => validateField('confirmPassword', confirmPassword)}
+                        error={errors.confirmPassword}
                         secureTextEntry={!showPassword}
                         required
                     />

@@ -34,6 +34,10 @@ export const CheckoutScreen: React.FC = () => {
     const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
     const [isCashAvailable, setIsCashAvailable] = useState(false);
 
+    // Using a simpler error state for checkout since it's mostly dynamic validation
+    // But setting up the structure for consistency
+    const [couponError, setCouponError] = useState<string | null>(null);
+
     useEffect(() => {
         fetchDetails();
     }, []);
@@ -105,22 +109,20 @@ export const CheckoutScreen: React.FC = () => {
 
             if (!success || !data) {
                 let userMessage = error || 'Something went wrong while applying the coupon.';
-                showAlert({ title: 'Invalid Coupon', message: userMessage, type: 'error' });
+                setCouponError(userMessage);
                 return;
             }
 
             const { data: hasUsed, success: usageSuccess } = await checkCouponUsage(couponCode, businessId, profile!.id);
             if (usageSuccess && hasUsed) {
-                showAlert({
-                    title: 'Limit Reached',
-                    message: 'You have already used this promo code for this business.',
-                    type: 'error'
-                });
+                setCouponError('You have already used this promo code for this business.');
                 return;
             }
 
             setAppliedCoupon(data);
-            showAlert({ title: 'Success', message: 'Promo code applied!', type: 'success' });
+            setCouponError(null);
+            // Optional: Success toast or small inline message instead of blocking alert
+            // showAlert({ title: 'Success', message: 'Promo code applied!', type: 'success' });
         } finally {
             setIsValidatingCoupon(false);
         }
@@ -212,11 +214,14 @@ export const CheckoutScreen: React.FC = () => {
                         <Text style={styles.sectionTitle}>Promotion Code</Text>
                         <View style={styles.couponInputContainer}>
                             <TextInput
-                                style={styles.couponInput}
+                                style={[styles.couponInput, couponError && { borderColor: Colors.status.error }]}
                                 placeholder="Enter Code"
                                 placeholderTextColor={Colors.text.tertiary}
                                 value={couponCode}
-                                onChangeText={setCouponCode}
+                                onChangeText={(val) => {
+                                    setCouponCode(val);
+                                    if (couponError) setCouponError(null);
+                                }}
                                 autoCapitalize="characters"
                                 editable={!appliedCoupon && !isValidatingCoupon}
                             />
@@ -232,6 +237,7 @@ export const CheckoutScreen: React.FC = () => {
                                 )}
                             </TouchableOpacity>
                         </View>
+                        {couponError && <Text style={{ color: Colors.status.error, fontSize: 12, marginTop: -4, marginBottom: 8 }}>{couponError}</Text>}
                         {appliedCoupon && (
                             <TouchableOpacity onPress={() => { setAppliedCoupon(null); setCouponCode(''); }}>
                                 <Text style={styles.removeCouponText}>Remove coupon</Text>

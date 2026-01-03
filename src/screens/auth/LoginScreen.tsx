@@ -27,30 +27,42 @@ export const LoginScreen: React.FC = () => {
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [emailError, setEmailError] = useState<string | null>(null);
-    const [passwordError, setPasswordError] = useState<string | null>(null);
+    const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
+    const validateField = (field: string, val: string) => {
+        let error: string | null = null;
+        switch (field) {
+            case 'email':
+                const emailVal = validateEmail(val.trim());
+                if (!emailVal.isValid) error = emailVal.error;
+                break;
+            case 'password':
+                const passVal = validateRequired(val, 'Password');
+                if (!passVal.isValid) error = passVal.error;
+                break;
+        }
+        setErrors(prev => ({ ...prev, [field]: error }));
+    };
+
     const validateForm = (): boolean => {
         let isValid = true;
+        const newErrors: { [key: string]: string | null } = {};
 
-        const emailValidation = validateEmail(email);
+        const emailValidation = validateEmail(email.trim());
         if (!emailValidation.isValid) {
-            setEmailError(emailValidation.error);
+            newErrors.email = emailValidation.error;
             isValid = false;
-        } else {
-            setEmailError(null);
         }
 
         const passwordValidation = validateRequired(password, 'Password');
         if (!passwordValidation.isValid) {
-            setPasswordError(passwordValidation.error);
+            newErrors.password = passwordValidation.error;
             isValid = false;
-        } else {
-            setPasswordError(null);
         }
 
+        setErrors(newErrors);
         return isValid;
     };
 
@@ -95,8 +107,12 @@ export const LoginScreen: React.FC = () => {
                         label="Email"
                         placeholder="Enter your email"
                         value={email}
-                        onChangeText={setEmail}
-                        error={emailError}
+                        onChangeText={(val) => {
+                            setEmail(val);
+                            if (errors.email) validateField('email', val);
+                        }}
+                        onBlur={() => validateField('email', email)}
+                        error={errors.email}
                         keyboardType="email-address"
                         autoCapitalize="none"
                         autoCorrect={false}
@@ -106,8 +122,12 @@ export const LoginScreen: React.FC = () => {
                         label="Password"
                         placeholder="Enter your password"
                         value={password}
-                        onChangeText={setPassword}
-                        error={passwordError}
+                        onChangeText={(val) => {
+                            setPassword(val);
+                            if (errors.password) validateField('password', val);
+                        }}
+                        onBlur={() => validateField('password', password)}
+                        error={errors.password}
                         secureTextEntry={!showPassword}
                         rightIcon={
                             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
